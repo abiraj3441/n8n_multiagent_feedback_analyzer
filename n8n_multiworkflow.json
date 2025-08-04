@@ -1,0 +1,336 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Customer feedback",
+        "formDescription": "Please give feedback about our company.\n",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Feedback",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Product "
+                  },
+                  {
+                    "option": "Service"
+                  },
+                  {
+                    "option": "Other"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Your Feedback",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "How do we get in touch with you?",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        176
+      ],
+      "id": "5c587fee-e52d-46b3-b1f5-9b49625cf407",
+      "name": "On form submission",
+      "webhookId": "b27cc47c-8472-4015-8df1-a000e890b513"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify the sentiment in the following customer feedback: {{ $json['Your feedback'] }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "13490c27-0b9b-4d55-bc38-4dda5fcab83a",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        208
+      ],
+      "id": "42565922-c51a-4a8a-9c16-181736490433",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "1v5dCEnJU5JTqeNR",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        112
+      ],
+      "id": "c0baee3e-6c03-4582-8e27-15716567feee",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1WfJTtm7FwlnRWQt7GfjY9ySxBdH2Rg8Ry_Atp8cf4Sc/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1WfJTtm7FwlnRWQt7GfjY9ySxBdH2Rg8Ry_Atp8cf4Sc/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.Name }}",
+            "Email": "={{ $json['How do we get in touch with you?'] }}",
+            "Message": "={{ $json['Your Feedback'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        880,
+        112
+      ],
+      "id": "66c2591d-7dbb-4c9e-a572-fd70753bcb93",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bQ2eNWqlqMJf0Hqg",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a concise email response without a subject line, to the feedback provided in the Customer Feedback Form: [{{ $json[\"Your feedback\"] || \"No feedback provided\" }}].\n\nFor Positive Feedback ([{{ $json.text || \"Feedback not classified yet\" }}]):\nCraft a short, warm email thanking the customer [{{ $json.Name || \"Customer\" }}] for taking the time to share their thoughts. Express genuine appreciation for their support.\n\nFor Negative Feedback ([{{ $json.text || \"Feedback not classified yet\" }}]):\nWrite a thoughtful, empathetic email thanking the customer [{{ $json.Name || \"Customer\" }}] for their valuable input. Show sincere interest in their perspective by asking how we can improve our services or products. Additionally, include a special offer code for a 20% discount on their next purchase as a gesture of goodwill.\n\nAlways conclude the email with the signature of the Founder and CEO:  \n\"The AI Agent Guy\".",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        704,
+        -160
+      ],
+      "id": "49e0ea47-d939-4311-b7c2-6bb7ce4083b9",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        16
+      ],
+      "id": "6aa15c19-907a-46f1-81c7-bc276f52a040",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "1v5dCEnJU5JTqeNR",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Merge').item.json['How do we get in touch with you?'] }}",
+        "subject": "Thank you for your feedback.",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1056,
+        -160
+      ],
+      "id": "db716a81-cf11-471d-a4a2-f1d2f6edb27c",
+      "name": "Send a message",
+      "webhookId": "8c701a47-361a-4121-aeb9-76a483b1adf8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QLnheN6IVnykYy3J",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "617c9722-1a6c-401e-92ce-109ee706a48a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "321bb3f60b11ecefd7027bc3a4b2a8ef7c93ea7faf4d1c8792c0e0eef7ec9ecd"
+  },
+  "id": "fS1rRD60SO4rkNzy",
+  "tags": []
+}
